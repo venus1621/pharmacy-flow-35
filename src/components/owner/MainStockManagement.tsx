@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { mainStockApi, medicinesApi } from "@/services/backendApi";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -49,29 +49,18 @@ export const MainStockManagement = () => {
   });
 
   const fetchData = async () => {
-    const [stockResult, medicineResult] = await Promise.all([
-      supabase
-        .from("main_stock")
-        .select("*, medicines(name, brand_name, category, unit)")
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("medicines")
-        .select("id, name, brand_name, category, unit")
-        .order("name")
-    ]);
-
-    if (stockResult.error) {
-      toast.error("Failed to load stock");
-    } else {
-      setStocks(stockResult.data || []);
+    try {
+      const [stocks, meds] = await Promise.all([
+        mainStockApi.getAll(),
+        medicinesApi.getAll()
+      ]);
+      setStocks(stocks || []);
+      setMedicines(meds || []);
+    } catch (error) {
+      toast.error("Failed to load data");
+    } finally {
+      setLoading(false);
     }
-
-    if (medicineResult.error) {
-      toast.error("Failed to load medicines");
-    } else {
-      setMedicines(medicineResult.data || []);
-    }
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -82,26 +71,24 @@ export const MainStockManagement = () => {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase
-      .from("main_stock")
-      .insert([{
+    try {
+      await mainStockApi.create({
         medicine_id: formData.medicine_id,
         quantity: parseInt(formData.quantity),
         batch_number: formData.batch_number || null,
         manufacture_date: formData.manufacture_date || null,
         expire_date: formData.expire_date,
         purchase_price: parseFloat(formData.purchase_price)
-      }]);
-
-    if (error) {
-      toast.error("Failed to add stock");
-    } else {
+      });
       toast.success("Stock added successfully");
       setDialogOpen(false);
       fetchData();
       resetForm();
+    } catch (error) {
+      toast.error("Failed to add stock");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const resetForm = () => {

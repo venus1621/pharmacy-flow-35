@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { branchesApi } from "@/services/backendApi";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -30,17 +30,14 @@ export const BranchManagement = () => {
   });
 
   const fetchBranches = async () => {
-    const { data, error } = await supabase
-      .from("branches")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      toast.error("Failed to load branches");
-    } else {
+    try {
+      const data = await branchesApi.getAll();
       setBranches(data || []);
+    } catch (error) {
+      toast.error("Failed to load branches");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -51,49 +48,33 @@ export const BranchManagement = () => {
     e.preventDefault();
     setLoading(true);
 
-    if (editingBranch) {
-      const { error } = await supabase
-        .from("branches")
-        .update(formData)
-        .eq("id", editingBranch.id);
-
-      if (error) {
-        toast.error("Failed to update branch");
-      } else {
+    try {
+      if (editingBranch) {
+        await branchesApi.update(editingBranch.id, formData);
         toast.success("Branch updated successfully");
-        setDialogOpen(false);
-        fetchBranches();
-      }
-    } else {
-      const { error } = await supabase
-        .from("branches")
-        .insert([formData]);
-
-      if (error) {
-        toast.error("Failed to create branch");
       } else {
+        await branchesApi.create(formData);
         toast.success("Branch created successfully");
-        setDialogOpen(false);
-        fetchBranches();
       }
+      setDialogOpen(false);
+      fetchBranches();
+      resetForm();
+    } catch (error) {
+      toast.error(editingBranch ? "Failed to update branch" : "Failed to create branch");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-    resetForm();
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this branch?")) return;
 
-    const { error } = await supabase
-      .from("branches")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      toast.error("Failed to delete branch");
-    } else {
+    try {
+      await branchesApi.delete(id);
       toast.success("Branch deleted successfully");
       fetchBranches();
+    } catch (error) {
+      toast.error("Failed to delete branch");
     }
   };
 
