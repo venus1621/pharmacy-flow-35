@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { medicinesApi } from "@/services/backendApi";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -39,17 +39,14 @@ export const MedicineManagement = () => {
   });
 
   const fetchMedicines = async () => {
-    const { data, error } = await supabase
-      .from("medicines")
-      .select("*")
-      .order("name");
-
-    if (error) {
-      toast.error("Failed to load medicines");
-    } else {
+    try {
+      const data = await medicinesApi.getAll();
       setMedicines(data || []);
+    } catch (error) {
+      toast.error("Failed to load medicines");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -60,49 +57,33 @@ export const MedicineManagement = () => {
     e.preventDefault();
     setLoading(true);
 
-    if (editingMedicine) {
-      const { error } = await supabase
-        .from("medicines")
-        .update(formData)
-        .eq("id", editingMedicine.id);
-
-      if (error) {
-        toast.error("Failed to update medicine");
-      } else {
+    try {
+      if (editingMedicine) {
+        await medicinesApi.update(editingMedicine.id, formData);
         toast.success("Medicine updated successfully");
-        setDialogOpen(false);
-        fetchMedicines();
-      }
-    } else {
-      const { error } = await supabase
-        .from("medicines")
-        .insert([formData]);
-
-      if (error) {
-        toast.error("Failed to add medicine");
       } else {
+        await medicinesApi.create(formData);
         toast.success("Medicine added successfully");
-        setDialogOpen(false);
-        fetchMedicines();
       }
+      setDialogOpen(false);
+      fetchMedicines();
+      resetForm();
+    } catch (error) {
+      toast.error(editingMedicine ? "Failed to update medicine" : "Failed to add medicine");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-    resetForm();
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this medicine?")) return;
 
-    const { error } = await supabase
-      .from("medicines")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      toast.error("Failed to delete medicine");
-    } else {
+    try {
+      await medicinesApi.delete(id);
       toast.success("Medicine deleted successfully");
       fetchMedicines();
+    } catch (error) {
+      toast.error("Failed to delete medicine");
     }
   };
 
