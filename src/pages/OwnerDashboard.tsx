@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { LogOut, Pill, TestTube } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { pharmaciesApi } from "@/services/backendApi";
 import { BranchManagement } from "@/components/owner/BranchManagement";
 import { MedicineManagement } from "@/components/owner/MedicineManagement";
 import { MainStockManagement } from "@/components/owner/MainStockManagement";
@@ -30,14 +30,7 @@ const OwnerDashboard = () => {
     queryKey: ["pharmacy", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const { data, error } = await supabase
-        .from("pharmacies")
-        .select("*")
-        .eq("owner_id", user.id)
-        .maybeSingle();
-      
-      if (error) throw error;
-      return data;
+      return await pharmaciesApi.get();
     },
     enabled: !!user?.id,
   });

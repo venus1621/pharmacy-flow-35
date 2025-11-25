@@ -2,10 +2,10 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { LogOut, Pill, TestTube } from "lucide-react";
+import { LogOut, Pill } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { assignmentsApi, branchesApi, pharmaciesApi } from "@/services/backendApi";
 import { POSSystem } from "@/components/pharmacist/POSSystem";
 import { BranchStockView } from "@/components/pharmacist/BranchStockView";
 import { StockRequestForm } from "@/components/pharmacist/StockRequestForm";
@@ -22,14 +22,8 @@ const PharmacistDashboard = () => {
   const { data: assignment } = useQuery({
     queryKey: ["pharmacist-assignment", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("pharmacist_assignments")
-        .select("branch_id, branches(name, pharmacy_id, pharmacies(name))")
-        .eq("pharmacist_id", user!.id)
-        .single();
-      
-      if (error) throw error;
-      return data;
+      const assignments = await assignmentsApi.getAll();
+      return assignments[0]; // Get first assignment
     },
     enabled: !!user?.id,
   });
