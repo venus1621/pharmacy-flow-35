@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { authApi } from "@/services/backendApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,25 +33,15 @@ const Index = () => {
     setSigningIn(true);
 
     try {
-      const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
+      const result = await authApi.signIn({
         email: signInData.email,
         password: signInData.password,
       });
 
-      if (signInError) throw signInError;
-
-      if (authData.user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", authData.user.id)
-          .maybeSingle();
-
-        toast.success("Signed in successfully!");
-        setDialogOpen(false);
-        const redirectPath = profile?.role === "owner" ? "/owner" : "/pharmacist";
-        navigate(redirectPath);
-      }
+      toast.success("Signed in successfully!");
+      setDialogOpen(false);
+      const redirectPath = result.user.role === "owner" ? "/owner" : "/pharmacist";
+      navigate(redirectPath);
     } catch (error: any) {
       toast.error(error.message || "Invalid email or password");
     } finally {
@@ -60,17 +50,7 @@ const Index = () => {
   };
 
   const handleGoogleSignIn = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/`
-        }
-      });
-      if (error) throw error;
-    } catch (error: any) {
-      toast.error(error.message || "Failed to sign in with Google");
-    }
+    toast.error("Google sign-in is not available with MongoDB backend. Please use email/password authentication.");
   };
 
   if (loading) {

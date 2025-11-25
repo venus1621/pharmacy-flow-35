@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { authApi, pharmaciesApi } from "@/services/backendApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,61 +40,22 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      // Create the owner account
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      // Create the owner account with pharmacy in one request
+      const result = await authApi.signUp({
         email: pharmacyData.email,
         password: pharmacyData.password,
-        options: {
-          data: {
-            full_name: pharmacyData.ownerName,
-            role: "owner"
-          },
-          emailRedirectTo: `${window.location.origin}/`
-        }
+        full_name: pharmacyData.ownerName,
+        role: "owner",
+        pharmacy_name: pharmacyData.pharmacyName,
+        pharmacy_address: `${pharmacyData.address}, ${pharmacyData.city}`,
+        pharmacy_phone: pharmacyData.phone
       });
 
-      if (signUpError) throw signUpError;
-
-      if (authData.user) {
-        // Create profile
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .insert({
-            id: authData.user.id,
-            full_name: pharmacyData.ownerName,
-            role: "owner"
-          });
-
-        if (profileError) throw profileError;
-
-        // Create pharmacy
-        const { error: pharmacyError } = await supabase
-          .from("pharmacies")
-          .insert({
-            owner_id: authData.user.id,
-            name: pharmacyData.pharmacyName,
-            address: `${pharmacyData.address}, ${pharmacyData.city}`,
-            phone: pharmacyData.phone,
-            plan: pharmacyData.plan,
-          });
-
-        if (pharmacyError) throw pharmacyError;
-
-        toast.success("Pharmacy registered successfully! Redirecting...");
-        
-        // Sign in automatically
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: pharmacyData.email,
-          password: pharmacyData.password,
-        });
-
-        if (signInError) throw signInError;
-
-        setTimeout(() => {
-          navigate("/owner");
-          window.location.reload();
-        }, 500);
-      }
+      toast.success("Pharmacy registered successfully! Redirecting...");
+      
+      setTimeout(() => {
+        navigate("/owner");
+      }, 500);
     } catch (error: any) {
       toast.error(error.message || "Failed to register pharmacy");
     } finally {
@@ -107,41 +68,14 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
+      const result = await authApi.signIn({
         email: signInData.email,
         password: signInData.password,
       });
 
-      if (signInError) throw signInError;
-
-      if (authData.user) {
-        // Fetch profile to determine role
-        let { data: profile } = await supabase
-          .from("profiles")
-          .select("role, full_name")
-          .eq("id", authData.user.id)
-          .maybeSingle();
-
-        // If profile doesn't exist, create default pharmacist profile
-        if (!profile) {
-          const { data: newProfile, error: insertError } = await supabase
-            .from("profiles")
-            .insert({
-              id: authData.user.id,
-              full_name: authData.user.email?.split('@')[0] || "User",
-              role: "pharmacist"
-            })
-            .select("role, full_name")
-            .single();
-
-          if (insertError) throw insertError;
-          profile = newProfile;
-        }
-
-        toast.success("Signed in successfully!");
-        const redirectPath = profile?.role === "owner" ? "/owner" : "/pharmacist";
-        navigate(redirectPath);
-      }
+      toast.success("Signed in successfully!");
+      const redirectPath = result.user.role === "owner" ? "/owner" : "/pharmacist";
+      navigate(redirectPath);
     } catch (error: any) {
       toast.error(error.message || "Invalid email or password");
     } finally {
