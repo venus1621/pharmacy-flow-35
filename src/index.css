@@ -1,0 +1,130 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Professional 3-color palette: Navy Blue, Teal, Neutral Grays */
+    --background: 210 20% 98%;
+    --foreground: 215 25% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 15%;
+
+    /* Primary: Navy Blue - Professional, trustworthy */
+    --primary: 215 85% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary: Light neutral gray */
+    --secondary: 210 15% 92%;
+    --secondary-foreground: 215 25% 15%;
+
+    --muted: 210 15% 92%;
+    --muted-foreground: 215 15% 45%;
+
+    /* Accent: Teal - Medical, calming */
+    --accent: 175 70% 40%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 15% 88%;
+    --input: 210 15% 88%;
+    --ring: 215 85% 45%;
+
+    --radius: 0.5rem;
+    
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+
+    /* Sidebar: Navy Blue theme */
+    --sidebar-background: 215 30% 12%;
+    --sidebar-foreground: 210 15% 92%;
+    --sidebar-primary: 215 85% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 215 25% 18%;
+    --sidebar-accent-foreground: 210 15% 92%;
+    --sidebar-border: 215 20% 20%;
+    --sidebar-ring: 215 85% 45%;
+    
+    --gradient-primary: linear-gradient(135deg, hsl(215 85% 45%), hsl(175 70% 40%));
+    --gradient-soft: linear-gradient(180deg, hsl(210 20% 99%), hsl(210 20% 98%));
+    --shadow-elegant: 0 4px 12px -2px hsl(215 85% 45% / 0.15);
+  }
+
+  .dark {
+    --background: 215 30% 10%;
+    --foreground: 210 15% 92%;
+
+    --card: 215 25% 13%;
+    --card-foreground: 210 15% 92%;
+
+    --popover: 215 25% 13%;
+    --popover-foreground: 210 15% 92%;
+
+    --primary: 215 85% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 215 20% 18%;
+    --secondary-foreground: 210 15% 92%;
+
+    --muted: 215 20% 18%;
+    --muted-foreground: 215 15% 65%;
+
+    --accent: 175 70% 45%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 215 20% 20%;
+    --input: 215 20% 20%;
+    --ring: 215 85% 55%;
+    
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+    
+    --sidebar-background: 215 30% 12%;
+    --sidebar-foreground: 210 15% 92%;
+    --sidebar-primary: 215 85% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 215 25% 18%;
+    --sidebar-accent-foreground: 210 15% 92%;
+    --sidebar-border: 215 20% 20%;
+    --sidebar-ring: 215 85% 55%;
+    
+    --gradient-primary: linear-gradient(135deg, hsl(215 85% 55%), hsl(175 70% 45%));
+    --gradient-soft: linear-gradient(180deg, hsl(215 25% 15%), hsl(215 30% 10%));
+    --shadow-elegant: 0 4px 12px -2px hsl(215 85% 55% / 0.2);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
