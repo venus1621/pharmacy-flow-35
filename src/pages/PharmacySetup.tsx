@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { authApi } from "@/services/backendApi";
+import { authApi, pharmaciesApi } from "@/services/backendApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,44 +35,22 @@ const PharmacySetup = () => {
     setLoading(true);
 
     try {
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      // Sign up the owner
+      const authResult = await authApi.signUp({
         email: pharmacyData.email,
         password: pharmacyData.password,
-        options: {
-          data: {
-            full_name: pharmacyData.ownerName,
-            role: "owner"
-          },
-          emailRedirectTo: `${window.location.origin}/`
-        }
+        full_name: pharmacyData.ownerName,
+        role: "owner",
+        pharmacy_name: pharmacyData.pharmacyName,
+        pharmacy_address: `${pharmacyData.address}, ${pharmacyData.city}`,
+        pharmacy_phone: pharmacyData.phone
       });
 
-      if (signUpError) throw signUpError;
-
-      if (authData.user) {
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .insert({
-            id: authData.user.id,
-            full_name: pharmacyData.ownerName,
-            role: "owner"
-          });
-
-        if (profileError) throw profileError;
-
-        toast.success("Pharmacy registered successfully! Redirecting...");
-        
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: pharmacyData.email,
-          password: pharmacyData.password,
-        });
-
-        if (signInError) throw signInError;
-
-        setTimeout(() => {
-          navigate("/owner");
-        }, 500);
-      }
+      toast.success("Pharmacy registered successfully! Redirecting...");
+      
+      setTimeout(() => {
+        navigate("/owner");
+      }, 500);
     } catch (error: any) {
       toast.error(error.message || "Failed to register pharmacy");
     } finally {

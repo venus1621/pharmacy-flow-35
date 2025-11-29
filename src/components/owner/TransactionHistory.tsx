@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { transactionsApi } from "@/services/backendApi";
+import { transactionsApi, branchesApi, profilesApi } from "@/services/backendApi";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -61,40 +61,26 @@ export function TransactionHistory() {
   }, [transactions, searchTerm, selectedBranch, selectedPharmacist, startDate, endDate]);
 
   const fetchBranches = async () => {
-    const { data } = await supabase
-      .from("branches")
-      .select("id, name")
-      .eq("is_active", true)
-      .order("name");
-    
-    if (data) setBranches(data);
+    try {
+      const data = await branchesApi.getAll();
+      setBranches(data.filter((b: any) => b.is_active));
+    } catch (error) {
+      console.error("Failed to fetch branches", error);
+    }
   };
 
   const fetchPharmacists = async () => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, full_name")
-      .eq("role", "pharmacist")
-      .order("full_name");
-    
-    if (data) setPharmacists(data);
+    try {
+      const data = await profilesApi.getAll();
+      setPharmacists(data.filter((p: any) => p.role === 'pharmacist'));
+    } catch (error) {
+      console.error("Failed to fetch pharmacists", error);
+    }
   };
 
   const fetchTransactions = async () => {
     try {
-      const { data, error } = await supabase
-        .from("transactions")
-        .select(`
-          id,
-          created_at,
-          total_amount,
-          payment_method,
-          pharmacist:profiles!transactions_pharmacist_id_fkey(full_name),
-          branch:branches(name)
-        `)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
+      const data = await transactionsApi.getAll();
       setTransactions(data || []);
     } catch (error: any) {
       toast({
@@ -110,18 +96,12 @@ export function TransactionHistory() {
   const fetchTransactionDetails = async (transactionId: string) => {
     setDetailsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("transaction_items")
-        .select(`
-          quantity,
-          unit_price,
-          subtotal,
-          medicine:medicines(name)
-        `)
-        .eq("transaction_id", transactionId);
-
-      if (error) throw error;
-      setTransactionItems(data || []);
+      // Note: Backend doesn't have transaction items endpoint yet
+      toast({
+        title: "Info",
+        description: "Transaction details feature requires backend implementation",
+      });
+      setTransactionItems([]);
     } catch (error: any) {
       toast({
         title: "Error",

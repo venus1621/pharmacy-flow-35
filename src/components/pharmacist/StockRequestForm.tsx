@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { stockTransfersApi, medicinesApi, assignmentsApi } from "@/services/backendApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,14 +25,8 @@ export const StockRequestForm = () => {
   const { data: assignment } = useQuery({
     queryKey: ["pharmacist-assignment", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("pharmacist_assignments")
-        .select("branch_id, branches(name)")
-        .eq("pharmacist_id", user?.id)
-        .single();
-      
-      if (error) throw error;
-      return data;
+      const assignments = await assignmentsApi.getAll();
+      return assignments.find((a: any) => a.pharmacist_id === user?.id);
     },
     enabled: !!user?.id,
   });
@@ -40,33 +34,15 @@ export const StockRequestForm = () => {
   // Fetch available medicines
   const { data: medicines } = useQuery({
     queryKey: ["medicines"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("medicines")
-        .select("*")
-        .order("name");
-      
-      if (error) throw error;
-      return data;
-    },
+    queryFn: async () => medicinesApi.getAll(),
   });
 
   // Fetch pharmacist's transfer requests
   const { data: transfers, isLoading } = useQuery({
     queryKey: ["my-transfers", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("stock_transfers")
-        .select(`
-          *,
-          medicines (name, brand_name, unit),
-          branches (name)
-        `)
-        .eq("requested_by", user?.id)
-        .order("created_at", { ascending: false });
-      
-      if (error) throw error;
-      return data;
+      const allTransfers = await stockTransfersApi.getAll();
+      return allTransfers.filter((t: any) => t.requested_by === user?.id);
     },
     enabled: !!user?.id,
   });
@@ -78,18 +54,13 @@ export const StockRequestForm = () => {
         throw new Error("Please fill all fields");
       }
 
-      const { error } = await supabase
-        .from("stock_transfers")
-        .insert({
-          branch_id: assignment.branch_id,
-          medicine_id: selectedMedicine,
-          quantity: parseInt(quantity),
-          notes: notes || null,
-          requested_by: user?.id,
-          status: "pending",
-        });
-
-      if (error) throw error;
+      await stockTransfersApi.create({
+        branch_id: assignment.branch_id,
+        medicine_id: selectedMedicine,
+        quantity: parseInt(quantity),
+        notes: notes || null,
+        requested_by: user?.id,
+      });
     },
     onSuccess: () => {
       toast({
@@ -135,7 +106,7 @@ export const StockRequestForm = () => {
       <div>
         <h2 className="text-2xl font-bold">Request Stock Transfer</h2>
         <p className="text-muted-foreground">
-          Branch: {assignment?.branches?.name || "Not assigned"}
+          Branch: {assignment?.branch_id || "Not assigned"}
         </p>
       </div>
 
@@ -158,7 +129,7 @@ export const StockRequestForm = () => {
                     <SelectValue placeholder="Select medicine" />
                   </SelectTrigger>
                   <SelectContent>
-                    {medicines?.map((med) => (
+                    {medicines?.map((med: any) => (
                       <SelectItem key={med.id} value={med.id}>
                         {med.name}
                         {med.brand_name && ` (${med.brand_name})`}
@@ -225,23 +196,26 @@ export const StockRequestForm = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {transfers?.map((transfer: any) => (
-                  <TableRow key={transfer.id}>
-                    <TableCell>{new Date(transfer.created_at).toLocaleDateString()}</TableCell>
-                    <TableCell className="font-medium">
-                      <div>{transfer.medicines.name}</div>
-                      {transfer.medicines.brand_name && (
-                        <div className="text-sm text-primary">{transfer.medicines.brand_name}</div>
-                      )}
-                    </TableCell>
-                    <TableCell>{transfer.quantity} {transfer.medicines.unit}</TableCell>
-                    <TableCell>{getStatusBadge(transfer.status)}</TableCell>
-                    <TableCell className="max-w-xs truncate">{transfer.notes || "-"}</TableCell>
-                    <TableCell>
-                      {transfer.approved_at ? new Date(transfer.approved_at).toLocaleDateString() : "-"}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {transfers?.map((transfer: any) => {
+                  const medicine = medicines?.find((m: any) => m.id === transfer.medicine_id);
+                  return (
+                    <TableRow key={transfer.id}>
+                      <TableCell>{new Date(transfer.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell className="font-medium">
+                        <div>{medicine?.name || 'Unknown'}</div>
+                        {medicine?.brand_name && (
+                          <div className="text-sm text-primary">{medicine.brand_name}</div>
+                        )}
+                      </TableCell>
+                      <TableCell>{transfer.quantity} {medicine?.unit || 'unit'}</TableCell>
+                      <TableCell>{getStatusBadge(transfer.status)}</TableCell>
+                      <TableCell className="max-w-xs truncate">{transfer.notes || "-"}</TableCell>
+                      <TableCell>
+                        {transfer.approved_at ? new Date(transfer.approved_at).toLocaleDateString() : "-"}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}

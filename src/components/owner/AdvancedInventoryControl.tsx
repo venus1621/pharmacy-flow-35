@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { mainStockApi, medicinesApi } from "@/services/backendApi";
+import { mainStockApi, medicinesApi, branchStockApi, branchesApi } from "@/services/backendApi";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,29 +23,30 @@ export const AdvancedInventoryControl = () => {
   const { data: inventoryData } = useQuery({
     queryKey: ["complete-inventory"],
     queryFn: async () => {
-      const [mainStockRes, branchStockRes, branchesRes] = await Promise.all([
-        supabase.from("main_stock").select("*, medicines(name, brand_name, unit)"),
-        supabase.from("branch_stock").select("*, medicines(name, brand_name, unit), branches(name)"),
-        supabase.from("branches").select("*").eq("is_active", true),
+      const [mainStock, branchStock, branches, medicines] = await Promise.all([
+        mainStockApi.getAll(),
+        branchStockApi.getByBranch("all"),
+        branchesApi.getAll(),
+        medicinesApi.getAll(),
       ]);
 
-      if (mainStockRes.error) throw mainStockRes.error;
-      if (branchStockRes.error) throw branchStockRes.error;
-      if (branchesRes.error) throw branchesRes.error;
+      // Create medicine lookup map
+      const medicineMap = new Map(medicines.map((m: any) => [m.id, m]));
 
       // Calculate inventory metrics
-      const mainTotal = mainStockRes.data.reduce((sum, item) => sum + item.quantity, 0);
-      const branchTotal = branchStockRes.data.reduce((sum, item) => sum + item.quantity, 0);
+      const mainTotal = mainStock.reduce((sum: number, item: any) => sum + item.quantity, 0);
+      const branchTotal = branchStock.reduce((sum: number, item: any) => sum + item.quantity, 0);
 
       // Group by medicine for distribution view
       const medicineDistribution: Record<string, any> = {};
       
-      mainStockRes.data.forEach((stock) => {
+      mainStock.forEach((stock: any) => {
+        const medicine: any = medicineMap.get(stock.medicine_id);
         if (!medicineDistribution[stock.medicine_id]) {
           medicineDistribution[stock.medicine_id] = {
-            name: stock.medicines.name,
-            brand_name: stock.medicines.brand_name,
-            unit: stock.medicines.unit,
+            name: medicine?.name || 'Unknown',
+            brand_name: medicine?.brand_name,
+            unit: medicine?.unit || 'unit',
             mainStock: 0,
             branchStocks: {},
             totalBranch: 0,
@@ -54,19 +55,21 @@ export const AdvancedInventoryControl = () => {
         medicineDistribution[stock.medicine_id].mainStock += stock.quantity;
       });
 
-      branchStockRes.data.forEach((stock: any) => {
+      branchStock.forEach((stock: any) => {
+        const medicine: any = medicineMap.get(stock.medicine_id);
         if (!medicineDistribution[stock.medicine_id]) {
           medicineDistribution[stock.medicine_id] = {
-            name: stock.medicines.name,
-            brand_name: stock.medicines.brand_name,
-            unit: stock.medicines.unit,
+            name: medicine?.name || 'Unknown',
+            brand_name: medicine?.brand_name,
+            unit: medicine?.unit || 'unit',
             mainStock: 0,
             branchStocks: {},
             totalBranch: 0,
           };
         }
         
-        const branchName = stock.branches.name;
+        const branch = branches.find((b: any) => b.id === stock.branch_id);
+        const branchName = branch?.name || 'Unknown';
         if (!medicineDistribution[stock.medicine_id].branchStocks[branchName]) {
           medicineDistribution[stock.medicine_id].branchStocks[branchName] = 0;
         }
@@ -75,9 +78,9 @@ export const AdvancedInventoryControl = () => {
       });
 
       return {
-        mainStock: mainStockRes.data,
-        branchStock: branchStockRes.data,
-        branches: branchesRes.data,
+        mainStock,
+        branchStock,
+        branches: branches.filter((b: any) => b.is_active),
         mainTotal,
         branchTotal,
         totalItems: mainTotal + branchTotal,
@@ -95,61 +98,8 @@ export const AdvancedInventoryControl = () => {
 
       const qty = parseInt(transferQuantity);
 
-      // Find main stock
-      const { data: mainStock, error: stockError } = await supabase
-        .from("main_stock")
-        .select("*")
-        .eq("medicine_id", transferMedicine)
-        .order("expire_date", { ascending: true })
-        .limit(1)
-        .single();
-
-      if (stockError || !mainStock) {
-        throw new Error("Medicine not available in main stock");
-      }
-
-      if (mainStock.quantity < qty) {
-        throw new Error(`Only ${mainStock.quantity} units available`);
-      }
-
-      // Reduce main stock
-      const { error: reduceError } = await supabase
-        .from("main_stock")
-        .update({ quantity: mainStock.quantity - qty })
-        .eq("id", mainStock.id);
-
-      if (reduceError) throw reduceError;
-
-      // Add to branch stock
-      const { data: existingBranchStock } = await supabase
-        .from("branch_stock")
-        .select("*")
-        .eq("branch_id", transferBranch)
-        .eq("medicine_id", transferMedicine)
-        .eq("batch_number", mainStock.batch_number || "")
-        .single();
-
-      if (existingBranchStock) {
-        const { error: updateError } = await supabase
-          .from("branch_stock")
-          .update({ quantity: existingBranchStock.quantity + qty })
-          .eq("id", existingBranchStock.id);
-
-        if (updateError) throw updateError;
-      } else {
-        const { error: insertError } = await supabase
-          .from("branch_stock")
-          .insert({
-            branch_id: transferBranch,
-            medicine_id: transferMedicine,
-            quantity: qty,
-            batch_number: mainStock.batch_number,
-            expire_date: mainStock.expire_date,
-            selling_price: mainStock.purchase_price * 1.3,
-          });
-
-        if (insertError) throw insertError;
-      }
+      // This operation requires backend support - for now, show error
+      throw new Error("Direct stock transfer feature requires backend implementation. Please use Stock Transfer Management for transfer requests.");
     },
     onSuccess: () => {
       toast({
@@ -173,11 +123,7 @@ export const AdvancedInventoryControl = () => {
   // Fetch medicines for dropdown
   const { data: medicines } = useQuery({
     queryKey: ["medicines"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("medicines").select("*").order("name");
-      if (error) throw error;
-      return data;
-    },
+    queryFn: async () => medicinesApi.getAll(),
   });
 
   const getDistributionPercentage = (branchTotal: number, mainTotal: number) => {

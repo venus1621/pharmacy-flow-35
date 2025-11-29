@@ -53,20 +53,10 @@ export function MyTransactions() {
 
   const fetchTransactions = async () => {
     try {
-      const { data, error } = await supabase
-        .from("transactions")
-        .select(`
-          id,
-          created_at,
-          total_amount,
-          payment_method,
-          branch:branches(name)
-        `)
-        .eq("pharmacist_id", user!.id)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setTransactions(data || []);
+      const data = await transactionsApi.getAll();
+      // Filter by current user (pharmacist)
+      const myTransactions = data.filter((t: any) => t.pharmacist_id === user!.id);
+      setTransactions(myTransactions);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -81,18 +71,12 @@ export function MyTransactions() {
   const fetchTransactionDetails = async (transactionId: string) => {
     setDetailsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("transaction_items")
-        .select(`
-          quantity,
-          unit_price,
-          subtotal,
-          medicine:medicines(name)
-        `)
-        .eq("transaction_id", transactionId);
-
-      if (error) throw error;
-      setTransactionItems(data || []);
+      // Note: Backend doesn't have transaction items endpoint yet
+      toast({
+        title: "Info",
+        description: "Transaction details feature requires backend implementation",
+      });
+      setTransactionItems([]);
     } catch (error: any) {
       toast({
         title: "Error",

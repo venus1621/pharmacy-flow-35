@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { branchStockApi, transactionsApi } from "@/services/backendApi";
+import { branchStockApi, transactionsApi, assignmentsApi, medicinesApi } from "@/services/backendApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,14 +35,8 @@ export const POSSystem = () => {
   const { data: assignment } = useQuery({
     queryKey: ["pharmacist-assignment", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("pharmacist_assignments")
-        .select("branch_id, branches(name)")
-        .eq("pharmacist_id", user?.id)
-        .single();
-      
-      if (error) throw error;
-      return data;
+      const assignments = await assignmentsApi.getAll();
+      return assignments.find((a: any) => a.pharmacist_id === user?.id);
     },
     enabled: !!user?.id,
   });
@@ -51,17 +45,19 @@ export const POSSystem = () => {
   const { data: branchStock } = useQuery({
     queryKey: ["branch-stock", assignment?.branch_id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("branch_stock")
-        .select(`
-          *,
-          medicines (name, brand_name, unit, requires_prescription)
-        `)
-        .eq("branch_id", assignment?.branch_id)
-        .gt("quantity", 0);
+      if (!assignment?.branch_id) return [];
+      const stock = await branchStockApi.getByBranch(assignment.branch_id);
       
-      if (error) throw error;
-      return data;
+      // Fetch medicines separately and merge
+      const medicines = await medicinesApi.getAll();
+      const medicineMap = new Map(medicines.map((m: any) => [m.id, m]));
+      
+      return stock
+        .filter((s: any) => s.quantity > 0)
+        .map((s: any) => ({
+          ...s,
+          medicines: medicineMap.get(s.medicine_id)
+        }));
     },
     enabled: !!assignment?.branch_id,
   });
@@ -76,48 +72,17 @@ export const POSSystem = () => {
       const totalAmount = cart.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
 
       // Create transaction
-      const { data: transaction, error: transactionError } = await supabase
-        .from("transactions")
-        .insert({
-          branch_id: assignment.branch_id,
-          pharmacist_id: user?.id,
-          payment_method: paymentMethod,
-          total_amount: totalAmount,
-        })
-        .select()
-        .single();
-
-      if (transactionError) throw transactionError;
-
-      // Create transaction items
-      const items = cart.map((item) => ({
-        transaction_id: transaction.id,
-        medicine_id: item.medicine_id,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        subtotal: item.quantity * item.unit_price,
-      }));
-
-      const { error: itemsError } = await supabase
-        .from("transaction_items")
-        .insert(items);
-
-      if (itemsError) throw itemsError;
-
-      // Update branch stock
-      for (const item of cart) {
-        const stockItem = branchStock?.find((s) => s.medicine_id === item.medicine_id);
-        if (stockItem) {
-          const { error: updateError } = await supabase
-            .from("branch_stock")
-            .update({
-              quantity: stockItem.quantity - item.quantity,
-            })
-            .eq("id", stockItem.id);
-
-          if (updateError) throw updateError;
-        }
-      }
+      const transaction = await transactionsApi.create({
+        branch_id: assignment.branch_id,
+        pharmacist_id: user?.id,
+        payment_method: paymentMethod,
+        total_amount: totalAmount,
+        items: cart.map(item => ({
+          medicine_id: item.medicine_id,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+        }))
+      });
 
       return transaction;
     },
@@ -144,7 +109,7 @@ export const POSSystem = () => {
   const addToCart = () => {
     if (!selectedMedicine) return;
 
-    const stockItem = branchStock?.find((s) => s.medicine_id === selectedMedicine);
+    const stockItem = branchStock?.find((s: any) => s.medicine_id === selectedMedicine);
     if (!stockItem) return;
 
     const qty = parseInt(quantity);
@@ -218,7 +183,7 @@ export const POSSystem = () => {
 
   const totalAmount = cart.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
 
-  const filteredStock = branchStock?.filter((stock) =>
+  const filteredStock = branchStock?.filter((stock: any) =>
     stock.medicines.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     stock.medicines.brand_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -228,7 +193,7 @@ export const POSSystem = () => {
       <div>
         <h2 className="text-2xl font-bold">Point of Sale</h2>
         <p className="text-muted-foreground">
-          Branch: {assignment?.branches?.name || "Not assigned"}
+          Branch: {assignment?.branch_id || "Not assigned"}
         </p>
       </div>
 
