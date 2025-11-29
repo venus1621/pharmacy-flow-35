@@ -1,5 +1,6 @@
 // MongoDB Backend API Service
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// const API_URL = import.meta.env.VITE_API_URL || 'https://newpharmacy.onrender.com';
+const API_URL ='https://newpharmacy.onrender.com';
 
 // Helper function to get auth token
 const getAuthToken = () => {

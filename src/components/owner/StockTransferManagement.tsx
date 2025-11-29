@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -7,6 +7,38 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Check, X, Clock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { stockTransfersApi, branchesApi, medicinesApi } from "@/services/backendApi";
+
+interface Transfer {
+  id: string;
+  branch_id: string | { id: string; name?: string };
+  medicine_id: string | Medicine;
+  medicine?: Medicine;
+  quantity: number;
+  requested_by?: string | Profile;
+  approved_by?: string | Profile;
+  approved_at?: string;
+  created_at: string;
+  status: string;
+  notes?: string;
+}
+
+interface Medicine {
+  id: string;
+  name: string;
+  brand_name?: string;
+  unit?: string;
+}
+
+interface Branch {
+  id: string;
+  name: string;
+}
+
+interface Profile {
+  id: string;
+  full_name?: string;
+}
 
 export const StockTransferManagement = () => {
   const { toast } = useToast();
@@ -17,110 +49,85 @@ export const StockTransferManagement = () => {
   const { data: transfers, isLoading } = useQuery({
     queryKey: ["stock-transfers"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("stock_transfers")
-        .select(`
-          *,
-          branches (name),
-          medicines (name, brand_name, unit),
-          profiles!stock_transfers_requested_by_fkey (full_name)
-        `)
-        .order("created_at", { ascending: false });
-      
-      if (error) throw error;
-      return data;
+      const data = await stockTransfersApi.getAll();
+      return data || [];
     },
   });
+
+  const { data: branches } = useQuery({
+    queryKey: ["branches"],
+    queryFn: async () => {
+      const data = await branchesApi.getAll();
+      return data || [];
+    },
+  });
+
+  const { data: medicines } = useQuery({
+    queryKey: ["medicines"],
+    queryFn: async () => {
+      const data = await medicinesApi.getAll();
+      return data || [];
+    },
+  });
+
+  const branchMap = useMemo(() => {
+    const map = new Map<string, Branch>();
+    (branches || []).forEach((branch: Branch) => {
+      map.set(branch.id, branch);
+    });
+    return map;
+  }, [branches]);
+
+  const medicineMap = useMemo(() => {
+    const map = new Map<string, Medicine>();
+    (medicines || []).forEach((medicine: Medicine) => {
+      map.set(medicine.id, medicine);
+    });
+    return map;
+  }, [medicines]);
+
+  const resolveBranch = (transfer: Transfer) => {
+    if (!transfer.branch_id) return undefined;
+    if (typeof transfer.branch_id === "object") {
+      return transfer.branch_id;
+    }
+    return branchMap.get(transfer.branch_id);
+  };
+
+  const resolveMedicine = (transfer: Transfer) => {
+    if (transfer.medicine && typeof transfer.medicine === "object") {
+      return transfer.medicine;
+    }
+    if (transfer.medicine_id && typeof transfer.medicine_id === "object") {
+      return transfer.medicine_id;
+    }
+    if (typeof transfer.medicine_id === "string") {
+      return medicineMap.get(transfer.medicine_id);
+    }
+    return undefined;
+  };
+
+  const resolveProfileName = (profile?: string | Profile) => {
+    if (!profile) return "Unknown User";
+    if (typeof profile === "object") return profile.full_name || "Unknown User";
+    return profile;
+  };
 
   // Approve transfer mutation
   const approveTransfer = useMutation({
     mutationFn: async (transferId: string) => {
-      const transfer = transfers?.find((t) => t.id === transferId);
-      if (!transfer) throw new Error("Transfer not found");
-
-      // Check if there's enough stock in main_stock
-      const { data: mainStock, error: stockError } = await supabase
-        .from("main_stock")
-        .select("*")
-        .eq("medicine_id", transfer.medicine_id)
-        .order("expire_date", { ascending: true })
-        .limit(1)
-        .single();
-
-      if (stockError || !mainStock) {
-        throw new Error("Insufficient stock in main warehouse");
-      }
-
-      if (mainStock.quantity < transfer.quantity) {
-        throw new Error(`Only ${mainStock.quantity} units available in main stock`);
-      }
-
-      // Start transaction-like operations
-      // 1. Update transfer status
-      const { error: updateError } = await supabase
-        .from("stock_transfers")
-        .update({
-          status: "approved",
-          approved_by: user?.id,
-          approved_at: new Date().toISOString(),
-        })
-        .eq("id", transferId);
-
-      if (updateError) throw updateError;
-
-      // 2. Reduce main stock
-      const { error: reduceError } = await supabase
-        .from("main_stock")
-        .update({
-          quantity: mainStock.quantity - transfer.quantity,
-        })
-        .eq("id", mainStock.id);
-
-      if (reduceError) throw reduceError;
-
-      // 3. Add to branch stock or update existing
-      const { data: existingBranchStock } = await supabase
-        .from("branch_stock")
-        .select("*")
-        .eq("branch_id", transfer.branch_id)
-        .eq("medicine_id", transfer.medicine_id)
-        .eq("batch_number", mainStock.batch_number || "")
-        .single();
-
-      if (existingBranchStock) {
-        // Update existing stock
-        const { error: branchUpdateError } = await supabase
-          .from("branch_stock")
-          .update({
-            quantity: existingBranchStock.quantity + transfer.quantity,
-          })
-          .eq("id", existingBranchStock.id);
-
-        if (branchUpdateError) throw branchUpdateError;
-      } else {
-        // Create new branch stock entry
-        const { error: branchInsertError } = await supabase
-          .from("branch_stock")
-          .insert({
-            branch_id: transfer.branch_id,
-            medicine_id: transfer.medicine_id,
-            quantity: transfer.quantity,
-            batch_number: mainStock.batch_number,
-            expire_date: mainStock.expire_date,
-            selling_price: mainStock.purchase_price * 1.3, // 30% markup
-          });
-
-        if (branchInsertError) throw branchInsertError;
-      }
+      await stockTransfersApi.update(transferId, {
+        status: "approved",
+        approved_by: user?.id,
+        approved_at: new Date().toISOString(),
+      });
     },
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "Transfer approved and stock moved to branch",
+        description: "Transfer approved and stock update requested",
       });
       queryClient.invalidateQueries({ queryKey: ["stock-transfers"] });
-      queryClient.invalidateQueries({ queryKey: ["main-stock"] });
-      queryClient.invalidateQueries({ queryKey: ["branch-stock"] });
     },
     onError: (error: Error) => {
       toast({
@@ -134,16 +141,11 @@ export const StockTransferManagement = () => {
   // Reject transfer mutation
   const rejectTransfer = useMutation({
     mutationFn: async (transferId: string) => {
-      const { error } = await supabase
-        .from("stock_transfers")
-        .update({
-          status: "rejected",
-          approved_by: user?.id,
-          approved_at: new Date().toISOString(),
-        })
-        .eq("id", transferId);
-
-      if (error) throw error;
+      await stockTransfersApi.update(transferId, {
+        status: "rejected",
+        approved_by: user?.id,
+        approved_at: new Date().toISOString(),
+      });
     },
     onSuccess: () => {
       toast({
@@ -174,8 +176,8 @@ export const StockTransferManagement = () => {
     }
   };
 
-  const pendingTransfers = transfers?.filter((t) => t.status === "pending") || [];
-  const processedTransfers = transfers?.filter((t) => t.status !== "pending") || [];
+  const pendingTransfers = transfers?.filter((t: Transfer) => t.status === "pending") || [];
+  const processedTransfers = transfers?.filter((t: Transfer) => t.status !== "pending") || [];
 
   return (
     <div className="space-y-6">
@@ -209,18 +211,21 @@ export const StockTransferManagement = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pendingTransfers.map((transfer: any) => (
+                {pendingTransfers.map((transfer: Transfer) => {
+                  const branch = resolveBranch(transfer);
+                  const medicine = resolveMedicine(transfer);
+                  return (
                   <TableRow key={transfer.id}>
                     <TableCell>{new Date(transfer.created_at).toLocaleDateString()}</TableCell>
-                    <TableCell className="font-medium">{transfer.branches?.name || "Unknown Branch"}</TableCell>
+                    <TableCell className="font-medium">{branch?.name || "Unknown Branch"}</TableCell>
                     <TableCell>
-                      <div>{transfer.medicines?.name || "Unknown Medicine"}</div>
-                      {transfer.medicines?.brand_name && (
-                        <div className="text-sm text-primary">{transfer.medicines.brand_name}</div>
+                      <div>{medicine?.name || "Unknown Medicine"}</div>
+                      {medicine?.brand_name && (
+                        <div className="text-sm text-primary">{medicine.brand_name}</div>
                       )}
                     </TableCell>
-                    <TableCell>{transfer.quantity} {transfer.medicines?.unit || "units"}</TableCell>
-                    <TableCell>{transfer.profiles?.full_name || "Unknown User"}</TableCell>
+                    <TableCell>{transfer.quantity} {medicine?.unit || "units"}</TableCell>
+                    <TableCell>{resolveProfileName(transfer.requested_by)}</TableCell>
                     <TableCell className="max-w-xs truncate">{transfer.notes || "-"}</TableCell>
                     <TableCell>
                       <div className="flex gap-2">
@@ -244,7 +249,7 @@ export const StockTransferManagement = () => {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                )})}
               </TableBody>
             </Table>
           )}
@@ -274,24 +279,28 @@ export const StockTransferManagement = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {processedTransfers.map((transfer: any) => (
-                  <TableRow key={transfer.id}>
-                    <TableCell>{new Date(transfer.created_at).toLocaleDateString()}</TableCell>
-                    <TableCell className="font-medium">{transfer.branches?.name || "Unknown Branch"}</TableCell>
-                    <TableCell>
-                      <div>{transfer.medicines?.name || "Unknown Medicine"}</div>
-                      {transfer.medicines?.brand_name && (
-                        <div className="text-sm text-primary">{transfer.medicines.brand_name}</div>
-                      )}
-                    </TableCell>
-                    <TableCell>{transfer.quantity} {transfer.medicines?.unit || "units"}</TableCell>
-                    <TableCell>{transfer.profiles?.full_name || "Unknown User"}</TableCell>
-                    <TableCell>{getStatusBadge(transfer.status)}</TableCell>
-                    <TableCell>
-                      {transfer.approved_at ? new Date(transfer.approved_at).toLocaleDateString() : "-"}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {processedTransfers.map((transfer: Transfer) => {
+                  const branch = resolveBranch(transfer);
+                  const medicine = resolveMedicine(transfer);
+                  return (
+                    <TableRow key={transfer.id}>
+                      <TableCell>{new Date(transfer.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell className="font-medium">{branch?.name || "Unknown Branch"}</TableCell>
+                      <TableCell>
+                        <div>{medicine?.name || "Unknown Medicine"}</div>
+                        {medicine?.brand_name && (
+                          <div className="text-sm text-primary">{medicine.brand_name}</div>
+                        )}
+                      </TableCell>
+                      <TableCell>{transfer.quantity} {medicine?.unit || "units"}</TableCell>
+                      <TableCell>{resolveProfileName(transfer.requested_by)}</TableCell>
+                      <TableCell>{getStatusBadge(transfer.status)}</TableCell>
+                      <TableCell>
+                        {transfer.approved_at ? new Date(transfer.approved_at).toLocaleDateString() : "-"}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
