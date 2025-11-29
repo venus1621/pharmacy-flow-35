@@ -53,14 +53,6 @@ const Index = () => {
     toast.error("Google sign-in is not available with MongoDB backend. Please use email/password authentication.");
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
   const features = [
     { icon: Building2, title: "Multi-Branch Management", description: "Manage multiple pharmacy locations from one central system" },
     { icon: BarChart3, title: "Real-Time Analytics", description: "Track sales, inventory, and performance with live dashboards" },
@@ -120,7 +112,15 @@ const Index = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="relative min-h-screen bg-background">
+      {loading && (
+        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
+            <p className="text-sm text-muted-foreground">Checking your session...</p>
+          </div>
+        </div>
+      )}
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         <div 

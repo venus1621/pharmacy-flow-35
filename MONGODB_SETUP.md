@@ -15,21 +15,18 @@ The frontend components in this project still contain Supabase references that n
 - MongoDB (local installation or MongoDB Atlas account)
 - npm or yarn
 
-### Step 1: Install MongoDB
+## Migration Status
 
+Most frontend Supabase code references have been migrated to use the MongoDB backend API (`src/services/backendApi`).
+If you still see `supabase` imports at runtime, please run `npm install` to refresh `package-lock.json` and rebuild the project. The only remaining mentions of Supabase are in documentation and the package lockfile.
 **Option A: Local Installation**
 - Download and install MongoDB from https://www.mongodb.com/try/download/community
 - Start MongoDB service:
   ```bash
-  # On MacOS
-  brew services start mongodb-community
-  
   # On Linux
   sudo systemctl start mongod
   
   # On Windows
-  net start MongoDB
-  ```
 
 **Option B: MongoDB Atlas (Cloud)**
 - Create a free account at https://www.mongodb.com/cloud/atlas
@@ -42,9 +39,6 @@ The frontend components in this project still contain Supabase references that n
 ```bash
 cd backend
 ```
-
-2. Install dependencies:
-```bash
 npm install
 ```
 
@@ -59,9 +53,6 @@ MONGODB_URI=mongodb://localhost:27017/gebeta-pharmacy
 # MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/gebeta-pharmacy
 
 JWT_SECRET=your-secure-secret-key-here
-PORT=5000
-CLIENT_URL=http://localhost:5173
-```
 
 4. Start the backend server:
 ```bash
@@ -102,27 +93,19 @@ All API endpoints are available at `http://localhost:5000/api/`
 - `/api/pharmacies` - Pharmacy details  
 - `/api/branches` - Branch management
 - `/api/medicines` - Medicine catalog
-- `/api/main-stock` - Central inventory
-- `/api/branch-stock` - Branch-level stock
-- `/api/transactions` - Sales transactions
-- `/api/stock-transfers` - Stock transfer requests
 - `/api/alerts` - System alerts
 - `/api/pharmacist-assignments` - Pharmacist-branch assignments
-
-## Remaining Work
-
-### Frontend Components Needing Updates
-
-The following components still import from `@/integrations/supabase/client` and need to be updated to use `@/services/backendApi`:
-
-**Owner Components:**
-- `src/components/owner/AdvancedInventoryControl.tsx`
-- `src/components/owner/AlertsManagement.tsx`
 - `src/components/owner/AnalyticsDashboard.tsx`
 - `src/components/owner/BranchManagement.tsx`
 - `src/components/owner/BranchStockView.tsx`
-- `src/components/owner/MainStockManagement.tsx`
+If you find any remaining `supabase` imports, update them to use `src/services/backendApi` following the migration pattern in this document. After updating code, run:
 - `src/components/owner/MedicineManagement.tsx`
+```powershell
+npm install
+npm run dev
+```
+
+This will ensure `package-lock.json` is updated and the project runs without Supabase dependencies.
 - `src/components/owner/PharmacistManagement.tsx`
 - `src/components/owner/ReportsManagement.tsx`
 - `src/components/owner/StockTransferManagement.tsx`
@@ -165,24 +148,14 @@ const fetchData = async () => {
 ```
 
 ## Testing the Setup
-
-1. Start MongoDB
-2. Start the backend server (`cd backend && npm start`)
 3. Start the frontend (`npm run dev`)
 4. Navigate to `http://localhost:5173`
-5. Try creating a new pharmacy account
-6. Test the authentication flow
 
 ## Troubleshooting
 
 ### Backend Issues
-
-**MongoDB Connection Failed:**
-- Verify MongoDB is running
 - Check connection string in `.env`
 - For Atlas, check network access and database user permissions
-
-**Port Already in Use:**
 - Change the `PORT` in `backend/.env`
 - Update `VITE_API_URL` in `.env.local` accordingly
 
@@ -200,12 +173,6 @@ const fetchData = async () => {
 ## Production Deployment
 
 ### Backend
-1. Set `NODE_ENV=production`
-2. Use a strong `JWT_SECRET`
-3. Set `MONGODB_URI` to production database
-4. Configure `CLIENT_URL` to your frontend domain
-5. Deploy to Heroku, AWS, DigitalOcean, or similar
-
 ### Frontend
 1. Update `VITE_API_URL` to production backend URL
 2. Build: `npm run build`

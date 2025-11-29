@@ -1,6 +1,8 @@
 // MongoDB Backend API Service
 // const API_URL = import.meta.env.VITE_API_URL || 'https://newpharmacy.onrender.com';
-const API_URL ='https://newpharmacy.onrender.com';
+// const API_URL ='https://newpharmacy.onrender.com';
+
+const API_URL ='http://localhost:5000/api';
 
 // Helper function to get auth token
 const getAuthToken = () => {
@@ -18,6 +20,9 @@ const getHeaders = () => {
 
 // Auth API
 export const authApi = {
+  // ---------------------------------------
+  // SIGN UP
+  // ---------------------------------------
   signUp: async (data: { 
     email: string; 
     password: string; 
@@ -28,41 +33,72 @@ export const authApi = {
     pharmacy_phone?: string;
   }) => {
     const response = await fetch(`${API_URL}/auth/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: getHeaders(),
       body: JSON.stringify(data)
     });
-    if (!response.ok) throw new Error('Sign up failed');
+
+    // Better error handling
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(error || "Sign up failed");
+    }
+
     const result = await response.json();
-    localStorage.setItem('auth_token', result.token);
+    console.log(result.token);
+    localStorage.setItem("auth_token", result.token); // Save JWT
+
     return result;
   },
 
+  // ---------------------------------------
+  // SIGN IN
+  // ---------------------------------------
   signIn: async (data: { email: string; password: string }) => {
     const response = await fetch(`${API_URL}/auth/signin`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: getHeaders(),
       body: JSON.stringify(data)
     });
-    if (!response.ok) throw new Error('Sign in failed');
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(error || "Sign in failed");
+    }
+
     const result = await response.json();
-    localStorage.setItem('auth_token', result.token);
+    localStorage.setItem("auth_token", result.token);
+
     return result;
   },
 
+  // ---------------------------------------
+  // SIGN OUT
+  // ---------------------------------------
   signOut: async () => {
-    localStorage.removeItem('auth_token');
-    await fetch(`${API_URL}/auth/signout`, {
-      method: 'POST',
-      headers: getHeaders()
-    });
+    const token = getAuthToken();
+
+    // Make sure token exists
+    if (token) {
+      await fetch(`${API_URL}/auth/signout`, {
+        method: "POST",
+        headers: getHeaders(),
+      });
+    }
+
+    localStorage.removeItem("auth_token");
   },
 
+  // ---------------------------------------
+  // GET CURRENT SESSION
+  // ---------------------------------------
   getSession: async () => {
     const response = await fetch(`${API_URL}/auth/session`, {
-      headers: getHeaders()
+      headers: getHeaders(),
     });
+
     if (!response.ok) return null;
+
     return await response.json();
   }
 };
@@ -234,6 +270,14 @@ export const mainStockApi = {
 export const branchStockApi = {
   getByBranch: async (branchId: string) => {
     const response = await fetch(`${API_URL}/branch-stock/branch/${branchId}`, {
+      headers: getHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to fetch branch stock');
+    return await response.json();
+  }
+  ,
+  getAll: async () => {
+    const response = await fetch(`${API_URL}/branch-stock`, {
       headers: getHeaders()
     });
     if (!response.ok) throw new Error('Failed to fetch branch stock');

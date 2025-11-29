@@ -46,11 +46,12 @@ const PharmacySetup = () => {
         pharmacy_phone: pharmacyData.phone
       });
 
-      toast.success("Pharmacy registered successfully! Redirecting...");
+      toast.success("Pharmacy registered successfully! Redirecting to your dashboard...");
       
+      // Redirect to owner dashboard after successful registration
       setTimeout(() => {
-        navigate("/owner");
-      }, 500);
+        navigate("/owner", { replace: true });
+      }, 1000);
     } catch (error: any) {
       toast.error(error.message || "Failed to register pharmacy");
     } finally {

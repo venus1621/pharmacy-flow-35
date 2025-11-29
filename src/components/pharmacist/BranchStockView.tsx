@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { assignmentsApi, branchStockApi } from "@/services/backendApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -16,14 +16,9 @@ export const BranchStockView = () => {
   const { data: assignment } = useQuery({
     queryKey: ["pharmacist-assignment", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("pharmacist_assignments")
-        .select("branch_id, branches(name)")
-        .eq("pharmacist_id", user?.id)
-        .single();
-      
-      if (error) throw error;
-      return data;
+      const all = await assignmentsApi.getAll();
+      const found = all.find((a: any) => a.pharmacist_id === user?.id);
+      return found || null;
     },
     enabled: !!user?.id,
   });
@@ -32,16 +27,8 @@ export const BranchStockView = () => {
   const { data: branchStock, isLoading } = useQuery({
     queryKey: ["branch-stock", assignment?.branch_id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("branch_stock")
-        .select(`
-          *,
-          medicines (name, brand_name, unit, category, requires_prescription)
-        `)
-        .eq("branch_id", assignment?.branch_id)
-        .order("medicines(name)");
-      
-      if (error) throw error;
+      if (!assignment?.branch_id) return [];
+      const data = await branchStockApi.getByBranch(assignment.branch_id);
       return data;
     },
     enabled: !!assignment?.branch_id,

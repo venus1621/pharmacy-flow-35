@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { transactionsApi, mainStockApi, branchStockApi } from "@/services/backendApi";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -11,15 +11,7 @@ export const ReportsManagement = () => {
   const { data: salesSummary } = useQuery({
     queryKey: ["sales-summary"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("transactions")
-        .select(`
-          *,
-          branches (name)
-        `)
-        .order("created_at", { ascending: false });
-      
-      if (error) throw error;
+      const data = await transactionsApi.getAll();
 
       // Calculate totals by branch
       const branchTotals: Record<string, { name: string; total: number; count: number }> = {};
@@ -27,7 +19,7 @@ export const ReportsManagement = () => {
 
       data.forEach((transaction: any) => {
         const branchId = transaction.branch_id;
-        const branchName = transaction.branches.name;
+        const branchName = transaction.branches?.name || "";
         const amount = Number(transaction.total_amount);
 
         if (!branchTotals[branchId]) {
@@ -52,24 +44,8 @@ export const ReportsManagement = () => {
   const { data: stockLevels } = useQuery({
     queryKey: ["stock-levels"],
     queryFn: async () => {
-      const { data: mainStock, error: mainError } = await supabase
-        .from("main_stock")
-        .select(`
-          *,
-          medicines (name, unit)
-        `);
-
-      if (mainError) throw mainError;
-
-      const { data: branchStock, error: branchError } = await supabase
-        .from("branch_stock")
-        .select(`
-          *,
-          medicines (name, unit),
-          branches (name)
-        `);
-
-      if (branchError) throw branchError;
+      const mainStock = await mainStockApi.getAll();
+      const branchStock = await branchStockApi.getAll();
 
       // Calculate totals by medicine
       const medicineStocks: Record<string, { name: string; unit: string; mainStock: number; branchStock: number }> = {};
@@ -114,28 +90,8 @@ export const ReportsManagement = () => {
       const threeMonthsFromNow = new Date();
       threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
 
-      const { data: mainStock, error: mainError } = await supabase
-        .from("main_stock")
-        .select(`
-          *,
-          medicines (name, unit)
-        `)
-        .lte("expire_date", threeMonthsFromNow.toISOString().split("T")[0])
-        .order("expire_date", { ascending: true });
-
-      if (mainError) throw mainError;
-
-      const { data: branchStock, error: branchError } = await supabase
-        .from("branch_stock")
-        .select(`
-          *,
-          medicines (name, unit),
-          branches (name)
-        `)
-        .lte("expire_date", threeMonthsFromNow.toISOString().split("T")[0])
-        .order("expire_date", { ascending: true });
-
-      if (branchError) throw branchError;
+      const mainStock = (await mainStockApi.getAll()).filter((s: any) => new Date(s.expire_date) <= threeMonthsFromNow);
+      const branchStock = (await branchStockApi.getAll()).filter((s: any) => new Date(s.expire_date) <= threeMonthsFromNow);
 
       return {
         mainStockExpiring: mainStock,

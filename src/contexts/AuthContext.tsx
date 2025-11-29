@@ -1,56 +1,74 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { authApi } from "@/services/backendApi";
 import { Profile } from "@/types/backend";
 
 interface AuthContextType {
   user: Profile | null;
-  profile: Profile | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  refreshSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+type AuthProviderProps = {
+  children: ReactNode;
+};
+
+export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<Profile | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Check for existing session
-    const checkAuth = async () => {
-      try {
-        const sessionData = await authApi.getSession();
-        if (sessionData?.user) {
-          setUser(sessionData.user);
-          setProfile(sessionData.user);
-        }
-      } catch (error) {
-        console.error('Auth check failed:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // ------------------------------------------
+  // Load user session from backend
+  // ------------------------------------------
+  const refreshSession = async () => {
+    try {
+      setLoading(true);
+      const sessionData = await authApi.getSession();
 
-    checkAuth();
+      if (sessionData?.user) {
+        setUser(sessionData.user);
+      } else {
+        setUser(null);
+      }
+    } catch (error) {
+      console.error("Session load error:", error);
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ------------------------------------------
+  // Initial session load
+  // ------------------------------------------
+  useEffect(() => {
+    refreshSession();
   }, []);
 
+  // ------------------------------------------
+  // Sign out
+  // ------------------------------------------
   const signOut = async () => {
     await authApi.signOut();
     setUser(null);
-    setProfile(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signOut, refreshSession }}>
       {children}
     </AuthContext.Provider>
   );
-};
+}
+
+// ------------------------------------------
+// Hook
+// ------------------------------------------
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
