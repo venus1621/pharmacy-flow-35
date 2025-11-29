@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { profilesApi, branchesApi, assignmentsApi } from "@/services/backendApi";
+import { profilesApi, branchesApi, assignmentsApi, pharmaciesApi } from "@/services/backendApi";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -29,102 +29,51 @@ export const PharmacistManagement = () => {
   // Fetch owner's pharmacy
   const { data: pharmacy } = useQuery({
     queryKey: ["owner-pharmacy"],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data, error } = await supabase
-        .from("pharmacies")
-        .select("*")
-        .eq("owner_id", user.id)
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
+    queryFn: async () => pharmaciesApi.get(),
   });
 
   // Fetch pharmacists
   const { data: pharmacists, isLoading: loadingPharmacists } = useQuery({
     queryKey: ["pharmacists"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("role", "pharmacist")
-        .order("created_at", { ascending: false });
-      
-      if (error) throw error;
-      return data;
+      const profiles = await profilesApi.getAll();
+      return profiles.filter((p: any) => p.role === 'pharmacist');
     },
   });
 
   // Fetch branches from owner's pharmacy
   const { data: branches } = useQuery({
     queryKey: ["branches", pharmacy?.id],
-    queryFn: async () => {
-      if (!pharmacy?.id) return [];
-      
-      const { data, error } = await supabase
-        .from("branches")
-        .select("*")
-        .eq("pharmacy_id", pharmacy.id)
-        .eq("is_active", true)
-        .order("name");
-      
-      if (error) throw error;
-      return data;
-    },
+    queryFn: async () => branchesApi.getAll(),
     enabled: !!pharmacy?.id,
   });
 
   // Fetch assignments
   const { data: assignments } = useQuery({
     queryKey: ["pharmacist-assignments"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("pharmacist_assignments")
-        .select(`
-          *,
-          branches (name),
-          profiles (full_name)
-        `);
-      
-      if (error) throw error;
-      return data;
-    },
+    queryFn: async () => assignmentsApi.getAll(),
   });
 
   // Create pharmacist mutation
   const createPharmacist = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // Create pharmacist profile via backend
+      const result = await profilesApi.create({
         email: data.email,
         password: data.password,
-        options: {
-          data: {
-            full_name: data.full_name,
-            role: "pharmacist",
-          },
-          emailRedirectTo: `${window.location.origin}/`,
-        },
+        full_name: data.full_name,
+        role: "pharmacist"
       });
 
-      if (authError) throw authError;
-
       // If branch selected, assign pharmacist to branch
-      if (data.assignToBranch && authData.user) {
-        const { error: assignError } = await supabase
-          .from("pharmacist_assignments")
-          .insert({
-            pharmacist_id: authData.user.id,
-            branch_id: data.assignToBranch,
-          });
-
-        if (assignError) throw assignError;
+      if (data.assignToBranch && result.id) {
+        await assignmentsApi.create({
+          pharmacist_id: result.id,
+          branch_id: data.assignToBranch,
+        });
       }
 
-      return authData;
+      return result;
     },
     onSuccess: () => {
       toast({
@@ -148,14 +97,10 @@ export const PharmacistManagement = () => {
   // Assign to branch mutation
   const assignToBranch = useMutation({
     mutationFn: async ({ pharmacistId, branchId }: { pharmacistId: string; branchId: string }) => {
-      const { error } = await supabase
-        .from("pharmacist_assignments")
-        .insert({
-          pharmacist_id: pharmacistId,
-          branch_id: branchId,
-        });
-
-      if (error) throw error;
+      await assignmentsApi.create({
+        pharmacist_id: pharmacistId,
+        branch_id: branchId,
+      });
     },
     onSuccess: () => {
       toast({
@@ -179,12 +124,7 @@ export const PharmacistManagement = () => {
   // Remove assignment mutation
   const removeAssignment = useMutation({
     mutationFn: async (assignmentId: string) => {
-      const { error } = await supabase
-        .from("pharmacist_assignments")
-        .delete()
-        .eq("id", assignmentId);
-
-      if (error) throw error;
+      await assignmentsApi.delete(assignmentId);
     },
     onSuccess: () => {
       toast({
@@ -250,7 +190,7 @@ export const PharmacistManagement = () => {
                       <SelectValue placeholder="Select pharmacist" />
                     </SelectTrigger>
                     <SelectContent>
-                      {pharmacists?.map((p) => (
+                      {pharmacists?.map((p: any) => (
                         <SelectItem key={p.id} value={p.id}>
                           {p.full_name}
                         </SelectItem>
@@ -265,7 +205,7 @@ export const PharmacistManagement = () => {
                       <SelectValue placeholder="Select branch" />
                     </SelectTrigger>
                     <SelectContent>
-                      {branches?.map((b) => (
+                      {branches?.map((b: any) => (
                         <SelectItem key={b.id} value={b.id}>
                           {b.name}
                         </SelectItem>
@@ -340,7 +280,7 @@ export const PharmacistManagement = () => {
                       <SelectValue placeholder="Select a branch (optional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      {branches?.map((branch) => (
+                      {branches?.map((branch: any) => (
                         <SelectItem key={branch.id} value={branch.id}>
                           {branch.name}
                         </SelectItem>
@@ -377,7 +317,7 @@ export const PharmacistManagement = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pharmacists?.map((pharmacist) => {
+                {pharmacists?.map((pharmacist: any) => {
                   const pharmacistAssignments = getPharmacistAssignments(pharmacist.id);
                   return (
                     <TableRow key={pharmacist.id}>
@@ -387,19 +327,22 @@ export const PharmacistManagement = () => {
                           {pharmacistAssignments.length === 0 ? (
                             <span className="text-muted-foreground text-sm">Not assigned</span>
                           ) : (
-                            pharmacistAssignments.map((assignment: any) => (
-                              <Badge key={assignment.id} variant="secondary" className="flex items-center gap-1">
-                                {assignment.branches.name}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-4 w-4 p-0 ml-1"
-                                  onClick={() => removeAssignment.mutate(assignment.id)}
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </Badge>
-                            ))
+                            pharmacistAssignments.map((assignment: any) => {
+                              const branch = branches?.find((b: any) => b.id === assignment.branch_id);
+                              return (
+                                <Badge key={assignment.id} variant="secondary" className="flex items-center gap-1">
+                                  {branch?.name || 'Unknown'}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-4 w-4 p-0 ml-1"
+                                    onClick={() => removeAssignment.mutate(assignment.id)}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </Badge>
+                              );
+                            })
                           )}
                         </div>
                       </TableCell>

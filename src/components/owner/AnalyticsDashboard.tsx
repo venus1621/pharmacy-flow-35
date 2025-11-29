@@ -24,20 +24,18 @@ export function AnalyticsDashboard() {
   const { data: transactions, isLoading } = useQuery({
     queryKey: ["analytics-transactions", dateRange.from, dateRange.to],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("transactions")
-        .select(`
-          *,
-          transaction_items(*),
-          branches(name),
-          profiles(full_name)
-        `)
-        .gte("created_at", dateRange.from.toISOString())
-        .lte("created_at", dateRange.to.toISOString())
-        .order("created_at", { ascending: true });
+      const data = await transactionsApi.getAll();
       
-      if (error) throw error;
-      return data;
+      // Filter by date range client-side
+      const filtered = data.filter((t: any) => {
+        const tDate = new Date(t.created_at);
+        return tDate >= dateRange.from && tDate <= dateRange.to;
+      });
+      
+      // Sort by date ascending
+      return filtered.sort((a: any, b: any) => 
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
     },
   });
 
@@ -73,8 +71,8 @@ export function AnalyticsDashboard() {
     if (!transactions) return [];
     
     const branchMap = new Map();
-    transactions.forEach((t) => {
-      const branchName = t.branches?.name || "Unknown";
+    transactions.forEach((t: any) => {
+      const branchName = t.branch?.name || "Unknown";
       const existing = branchMap.get(branchName) || { name: branchName, value: 0 };
       branchMap.set(branchName, {
         name: branchName,

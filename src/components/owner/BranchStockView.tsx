@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { branchStockApi, branchesApi } from "@/services/backendApi";
+import { branchStockApi, branchesApi, medicinesApi } from "@/services/backendApi";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,47 +30,37 @@ export function BranchStockView() {
   // Fetch branches
   const { data: branches } = useQuery({
     queryKey: ["branches"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("branches")
-        .select("*")
-        .order("name");
-      if (error) throw error;
-      return data;
-    },
+    queryFn: async () => branchesApi.getAll(),
   });
 
-  // Fetch branch stock with medicine and branch details
+  // Fetch medicines
+  const { data: medicines } = useQuery({
+    queryKey: ["medicines"],
+    queryFn: async () => medicinesApi.getAll(),
+  });
+
+  // Fetch branch stock
   const { data: branchStock, isLoading } = useQuery({
     queryKey: ["branch-stock", selectedBranch],
     queryFn: async () => {
-      let query = supabase
-        .from("branch_stock")
-        .select(`
-          *,
-          medicines(id, name, brand_name, category, unit),
-          branches(id, name, location)
-        `)
-        .order("created_at", { ascending: false });
-
-      if (selectedBranch !== "all") {
-        query = query.eq("branch_id", selectedBranch);
+      if (selectedBranch === "all") {
+        // Fetch all stock from all branches
+        const allBranches = await branchesApi.getAll();
+        const allStock = await Promise.all(
+          allBranches.map((b: any) => branchStockApi.getByBranch(b.id))
+        );
+        return allStock.flat();
+      } else {
+        return branchStockApi.getByBranch(selectedBranch);
       }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data;
     },
   });
 
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("branch_stock")
-        .delete()
-        .eq("id", id);
-      if (error) throw error;
+      toast.info("Delete functionality requires backend implementation");
+      throw new Error("Delete not implemented");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["branch-stock"] });
@@ -94,11 +84,17 @@ export function BranchStockView() {
     }
   };
 
+  // Create lookups for medicines and branches
+  const medicineMap = new Map(medicines?.map((m: any) => [m.id, m]) || []);
+  const branchMap = new Map(branches?.map((b: any) => [b.id, b]) || []);
+
   // Filter stock based on search query
   const filteredStock = branchStock?.filter((item: any) => {
-    const medicineName = item.medicines?.name?.toLowerCase() || "";
-    const brandName = item.medicines?.brand_name?.toLowerCase() || "";
-    const branchName = item.branches?.name?.toLowerCase() || "";
+    const medicine: any = medicineMap.get(item.medicine_id);
+    const branch: any = branchMap.get(item.branch_id);
+    const medicineName = medicine?.name?.toLowerCase() || "";
+    const brandName = medicine?.brand_name?.toLowerCase() || "";
+    const branchName = branch?.name?.toLowerCase() || "";
     const search = searchQuery.toLowerCase();
     return medicineName.includes(search) || brandName.includes(search) || branchName.includes(search);
   });
@@ -133,7 +129,7 @@ export function BranchStockView() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Branches</SelectItem>
-                {branches?.map((branch) => (
+                {branches?.map((branch: any) => (
                   <SelectItem key={branch.id} value={branch.id}>
                     {branch.name}
                   </SelectItem>
@@ -162,35 +158,39 @@ export function BranchStockView() {
                 </TableHeader>
                 <TableBody>
                   {filteredStock && filteredStock.length > 0 ? (
-                    filteredStock.map((item: any) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">
-                          {item.branches?.name}
-                        </TableCell>
-                        <TableCell>{item.medicines?.name}</TableCell>
-                        <TableCell>{item.medicines?.brand_name || "-"}</TableCell>
-                        <TableCell>{item.batch_number || "-"}</TableCell>
-                        <TableCell>
-                          <span className={item.quantity < 10 ? "text-destructive font-semibold" : ""}>
-                            {item.quantity} {item.medicines?.unit}
-                          </span>
-                        </TableCell>
-                        <TableCell>${item.selling_price}</TableCell>
-                        <TableCell>
-                          {format(new Date(item.expire_date), "MMM dd, yyyy")}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(item.id)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    filteredStock.map((item: any) => {
+                      const medicine: any = medicineMap.get(item.medicine_id);
+                      const branch: any = branchMap.get(item.branch_id);
+                      return (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium">
+                            {branch?.name || 'Unknown'}
+                          </TableCell>
+                          <TableCell>{medicine?.name || 'Unknown'}</TableCell>
+                          <TableCell>{medicine?.brand_name || "-"}</TableCell>
+                          <TableCell>{item.batch_number || "-"}</TableCell>
+                          <TableCell>
+                            <span className={item.quantity < 10 ? "text-destructive font-semibold" : ""}>
+                              {item.quantity} {medicine?.unit || 'unit'}
+                            </span>
+                          </TableCell>
+                          <TableCell>${item.selling_price}</TableCell>
+                          <TableCell>
+                            {format(new Date(item.expire_date), "MMM dd, yyyy")}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(item.id)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   ) : (
                     <TableRow>
                       <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">

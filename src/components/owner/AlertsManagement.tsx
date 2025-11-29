@@ -33,25 +33,16 @@ export const AlertsManagement = () => {
 
   const fetchAlerts = async () => {
     try {
-      let query = supabase
-        .from("alerts")
-        .select(`
-          *,
-          branches(name),
-          medicines(name)
-        `)
-        .order("created_at", { ascending: false });
-
+      const data = await alertsApi.getAll();
+      
+      let filtered = data;
       if (filter === "unread") {
-        query = query.eq("is_read", false);
+        filtered = data.filter((a: any) => !a.is_read);
       } else if (filter === "critical") {
-        query = query.eq("severity", "critical");
+        filtered = data.filter((a: any) => a.severity === "critical");
       }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-      setAlerts((data || []) as Alert[]);
+      
+      setAlerts(filtered as Alert[]);
     } catch (error) {
       console.error("Error fetching alerts:", error);
       toast.error("Failed to load alerts");
@@ -66,14 +57,10 @@ export const AlertsManagement = () => {
 
   const markAsRead = async (alertId: string) => {
     try {
-      const { error } = await supabase
-        .from("alerts")
-        .update({ is_read: true })
-        .eq("id", alertId);
-
-      if (error) throw error;
-      toast.success("Alert marked as read");
-      fetchAlerts();
+      // Note: Backend API doesn't support alert updates yet
+      toast.info("Alert management features require backend implementation");
+      // await alertsApi.markAsRead(alertId);
+      // fetchAlerts();
     } catch (error) {
       console.error("Error marking alert as read:", error);
       toast.error("Failed to mark alert as read");
@@ -82,14 +69,10 @@ export const AlertsManagement = () => {
 
   const resolveAlert = async (alertId: string) => {
     try {
-      const { error } = await supabase
-        .from("alerts")
-        .update({ is_resolved: true, resolved_at: new Date().toISOString() })
-        .eq("id", alertId);
-
-      if (error) throw error;
-      toast.success("Alert resolved");
-      fetchAlerts();
+      // Note: Backend API doesn't support alert updates yet
+      toast.info("Alert management features require backend implementation");
+      // await alertsApi.resolve(alertId);
+      // fetchAlerts();
     } catch (error) {
       console.error("Error resolving alert:", error);
       toast.error("Failed to resolve alert");
