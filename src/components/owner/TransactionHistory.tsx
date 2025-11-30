@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { transactionsApi, branchesApi, profilesApi } from "@/services/backendApi";
+import { transactionsApi, transactionItemsApi, branchesApi, profilesApi } from "@/services/backendApi";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -96,13 +96,10 @@ export function TransactionHistory() {
   const fetchTransactionDetails = async (transactionId: string) => {
     setDetailsLoading(true);
     try {
-      // Note: Backend doesn't have transaction items endpoint yet
-      toast({
-        title: "Info",
-        description: "Transaction details feature requires backend implementation",
-      });
-      setTransactionItems([]);
+      const items = await transactionItemsApi.getByTransaction(transactionId);
+      setTransactionItems(items || []);
     } catch (error: any) {
+      console.error('Error fetching transaction items:', error);
       toast({
         title: "Error",
         description: error.message,
