@@ -59,8 +59,7 @@ export function BranchStockView() {
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      toast.info("Delete functionality requires backend implementation");
-      throw new Error("Delete not implemented");
+      return await branchStockApi.delete(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["branch-stock"] });

@@ -274,13 +274,42 @@ export const branchStockApi = {
     });
     if (!response.ok) throw new Error('Failed to fetch branch stock');
     return await response.json();
-  }
-  ,
+  },
+
   getAll: async () => {
     const response = await fetch(`${API_URL}/branch-stock`, {
       headers: getHeaders()
     });
     if (!response.ok) throw new Error('Failed to fetch branch stock');
+    return await response.json();
+  },
+
+  create: async (data: any) => {
+    const response = await fetch(`${API_URL}/branch-stock`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) throw new Error('Failed to create branch stock');
+    return await response.json();
+  },
+
+  update: async (id: string, data: any) => {
+    const response = await fetch(`${API_URL}/branch-stock/${id}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) throw new Error('Failed to update branch stock');
+    return await response.json();
+  },
+
+  delete: async (id: string) => {
+    const response = await fetch(`${API_URL}/branch-stock/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to delete branch stock');
     return await response.json();
   }
 };
@@ -295,6 +324,14 @@ export const transactionsApi = {
     return await response.json();
   },
 
+  getById: async (id: string) => {
+    const response = await fetch(`${API_URL}/transactions/${id}`, {
+      headers: getHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to fetch transaction');
+    return await response.json();
+  },
+
   create: async (data: any) => {
     const response = await fetch(`${API_URL}/transactions`, {
       method: 'POST',
@@ -302,6 +339,37 @@ export const transactionsApi = {
       body: JSON.stringify(data)
     });
     if (!response.ok) throw new Error('Failed to create transaction');
+    return await response.json();
+  }
+};
+
+// Transaction Items API
+export const transactionItemsApi = {
+  getByTransaction: async (transactionId: string) => {
+    const response = await fetch(`${API_URL}/transaction-items/transaction/${transactionId}`, {
+      headers: getHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to fetch transaction items');
+    return await response.json();
+  },
+
+  create: async (data: any) => {
+    const response = await fetch(`${API_URL}/transaction-items`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) throw new Error('Failed to create transaction item');
+    return await response.json();
+  },
+
+  createBulk: async (items: any[]) => {
+    const response = await fetch(`${API_URL}/transaction-items/bulk`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ items })
+    });
+    if (!response.ok) throw new Error('Failed to create transaction items');
     return await response.json();
   }
 };
@@ -344,6 +412,53 @@ export const alertsApi = {
       headers: getHeaders()
     });
     if (!response.ok) throw new Error('Failed to fetch alerts');
+    return await response.json();
+  },
+
+  create: async (data: any) => {
+    const response = await fetch(`${API_URL}/alerts`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) throw new Error('Failed to create alert');
+    return await response.json();
+  },
+
+  update: async (id: string, data: any) => {
+    const response = await fetch(`${API_URL}/alerts/${id}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) throw new Error('Failed to update alert');
+    return await response.json();
+  },
+
+  markAsRead: async (id: string) => {
+    const response = await fetch(`${API_URL}/alerts/${id}/read`, {
+      method: 'PATCH',
+      headers: getHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to mark alert as read');
+    return await response.json();
+  },
+
+  resolve: async (id: string) => {
+    const response = await fetch(`${API_URL}/alerts/${id}/resolve`, {
+      method: 'PATCH',
+      headers: getHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to resolve alert');
+    return await response.json();
+  },
+
+  delete: async (id: string) => {
+    const response = await fetch(`${API_URL}/alerts/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to delete alert');
     return await response.json();
   }
 };

@@ -57,10 +57,9 @@ export const AlertsManagement = () => {
 
   const markAsRead = async (alertId: string) => {
     try {
-      // Note: Backend API doesn't support alert updates yet
-      toast.info("Alert management features require backend implementation");
-      // await alertsApi.markAsRead(alertId);
-      // fetchAlerts();
+      await alertsApi.markAsRead(alertId);
+      fetchAlerts();
+      toast.success("Alert marked as read");
     } catch (error) {
       console.error("Error marking alert as read:", error);
       toast.error("Failed to mark alert as read");
@@ -69,10 +68,9 @@ export const AlertsManagement = () => {
 
   const resolveAlert = async (alertId: string) => {
     try {
-      // Note: Backend API doesn't support alert updates yet
-      toast.info("Alert management features require backend implementation");
-      // await alertsApi.resolve(alertId);
-      // fetchAlerts();
+      await alertsApi.resolve(alertId);
+      fetchAlerts();
+      toast.success("Alert resolved successfully");
     } catch (error) {
       console.error("Error resolving alert:", error);
       toast.error("Failed to resolve alert");
