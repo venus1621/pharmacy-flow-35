@@ -4,6 +4,7 @@ import { Profile } from "@/types/backend";
 
 interface AuthContextType {
   user: Profile | null;
+  profile: Profile | null; // Alias for user for backward compatibility
   loading: boolean;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<void>;
@@ -56,7 +57,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signOut, refreshSession }}>
+    <AuthContext.Provider value={{ user, profile: user, loading, signOut, refreshSession }}>
       {children}
     </AuthContext.Provider>
   );
