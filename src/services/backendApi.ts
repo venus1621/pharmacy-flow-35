@@ -492,3 +492,113 @@ export const assignmentsApi = {
     return await response.json();
   }
 };
+
+// Promotions Management (Owner)
+export const promotionsApi = {
+  getAll: async () => {
+    const response = await fetch(`${API_URL}/promotions/my-promotions`, {
+      headers: getHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to fetch promotions');
+    return await response.json();
+  },
+  
+  create: async (data: any) => {
+    const response = await fetch(`${API_URL}/promotions`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) throw new Error('Failed to create promotion');
+    return await response.json();
+  },
+  
+  update: async (id: string, data: any) => {
+    const response = await fetch(`${API_URL}/promotions/${id}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) throw new Error('Failed to update promotion');
+    return await response.json();
+  },
+  
+  delete: async (id: string) => {
+    const response = await fetch(`${API_URL}/promotions/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to delete promotion');
+    return await response.json();
+  }
+};
+
+// Mobile API - Public Search (no auth required for basic search)
+export const mobileApi = {
+  searchMedicines: async (query: string, lat?: number, lng?: number, radius?: number) => {
+    const params = new URLSearchParams({ q: query });
+    if (lat) params.append('lat', lat.toString());
+    if (lng) params.append('lng', lng.toString());
+    if (radius) params.append('radius', radius.toString());
+    
+    const response = await fetch(`${API_URL}/mobile/medicines/search?${params}`);
+    if (!response.ok) throw new Error('Failed to search medicines');
+    return await response.json();
+  },
+  
+  getMedicineDetails: async (id: string, lat?: number, lng?: number) => {
+    const params = new URLSearchParams();
+    if (lat) params.append('lat', lat.toString());
+    if (lng) params.append('lng', lng.toString());
+    
+    const url = params.toString() 
+      ? `${API_URL}/mobile/medicines/${id}?${params}`
+      : `${API_URL}/mobile/medicines/${id}`;
+    
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Failed to get medicine details');
+    return await response.json();
+  },
+  
+  searchPharmacies: async (lat: number, lng: number, radius?: number, query?: string) => {
+    const params = new URLSearchParams({
+      lat: lat.toString(),
+      lng: lng.toString()
+    });
+    if (radius) params.append('radius', radius.toString());
+    if (query) params.append('q', query);
+    
+    const response = await fetch(`${API_URL}/mobile/pharmacies/search?${params}`);
+    if (!response.ok) throw new Error('Failed to search pharmacies');
+    return await response.json();
+  },
+  
+  getBranchMedicines: async (branchId: string, category?: string, inStock?: boolean) => {
+    const params = new URLSearchParams();
+    if (category) params.append('category', category);
+    if (inStock !== undefined) params.append('in_stock', inStock.toString());
+    
+    const url = params.toString()
+      ? `${API_URL}/mobile/branches/${branchId}/medicines?${params}`
+      : `${API_URL}/mobile/branches/${branchId}/medicines`;
+    
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Failed to get branch medicines');
+    return await response.json();
+  },
+  
+  getPromotions: async (lat?: number, lng?: number, category?: string) => {
+    const params = new URLSearchParams();
+    if (lat) params.append('lat', lat.toString());
+    if (lng) params.append('lng', lng.toString());
+    if (category) params.append('category', category);
+    
+    const url = params.toString()
+      ? `${API_URL}/mobile/promotions?${params}`
+      : `${API_URL}/mobile/promotions`;
+    
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Failed to get promotions');
+    return await response.json();
+  }
+};

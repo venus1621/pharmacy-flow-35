@@ -1,4 +1,4 @@
-import { Building2, Pill, Package, PackageSearch, Users, ArrowRightLeft, FileText, Receipt, Warehouse, BarChart3, Bell } from "lucide-react";
+import { Building2, Pill, Package, PackageSearch, Users, ArrowRightLeft, FileText, Receipt, Warehouse, BarChart3, Bell, Tag } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -20,6 +20,7 @@ const menuItems = [
   { title: "Pharmacists", icon: Users, value: "pharmacists" },
   { title: "Stock Transfers", icon: ArrowRightLeft, value: "transfers" },
   { title: "Transactions", icon: Receipt, value: "transactions" },
+  { title: "Promotions", icon: Tag, value: "promotions" },
   { title: "Alerts", icon: Bell, value: "alerts" },
   { title: "Analytics", icon: BarChart3, value: "analytics" },
   { title: "Reports", icon: FileText, value: "reports" },

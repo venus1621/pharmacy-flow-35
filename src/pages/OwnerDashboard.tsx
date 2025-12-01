@@ -17,6 +17,7 @@ import { TransactionHistory } from "@/components/owner/TransactionHistory";
 import { BranchStockView } from "@/components/owner/BranchStockView";
 import { AnalyticsDashboard } from "@/components/owner/AnalyticsDashboard";
 import { AlertsManagement } from "@/components/owner/AlertsManagement";
+import { PromotionsManagement } from "@/components/owner/PromotionsManagement";
 import { OwnerSidebar } from "@/components/owner/OwnerSidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
@@ -58,6 +59,8 @@ const OwnerDashboard = () => {
         return <StockTransferManagement />;
       case "transactions":
         return <TransactionHistory />;
+      case "promotions":
+        return <PromotionsManagement />;
       case "alerts":
         return <AlertsManagement />;
       case "analytics":
