@@ -133,3 +133,71 @@ export interface AuthResponse {
   user: Profile;
   token: string;
 }
+
+// Mobile App Types
+export interface MobileUser {
+  id: string;
+  full_name: string;
+  email: string;
+  phone?: string;
+  location?: {
+    latitude: number;
+    longitude: number;
+    address: string;
+  };
+  push_token?: string;
+  preferences?: {
+    notification_radius: number;
+    favorite_categories: string[];
+  };
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Promotion {
+  id: string;
+  pharmacy_id: string;
+  branch_id: string;
+  medicine_id: string;
+  discount_percentage: number;
+  promotional_price: number;
+  description: string;
+  valid_from: string;
+  valid_until: string;
+  is_featured: boolean;
+  is_active: boolean;
+  notification_sent?: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  medicine?: Medicine;
+  branch?: Branch;
+}
+
+export interface MedicineAvailability {
+  branch_id: string;
+  branch_name: string;
+  pharmacy_name: string;
+  location: {
+    address: string;
+    latitude?: number;
+    longitude?: number;
+    distance_km?: number;
+  };
+  quantity: number;
+  selling_price: number;
+  in_stock: boolean;
+  batch_number?: string;
+  expire_date: string;
+}
+
+export interface PromotionNotification {
+  id: string;
+  user_id: string;
+  promotion_id: string;
+  title: string;
+  message: string;
+  read: boolean;
+  sent_at: string;
+  created_at: string;
+}
