@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus, Edit, Trash2, MapPin } from "lucide-react";
+import { Plus, Edit, Trash2, MapPin, Navigation } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
 interface Branch {
@@ -15,6 +15,9 @@ interface Branch {
   location: string;
   phone: string | null;
   is_active: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
+  operating_hours?: string | null;
 }
 
 export const BranchManagement = () => {
@@ -26,7 +29,10 @@ export const BranchManagement = () => {
     name: "",
     location: "",
     phone: "",
-    is_active: true
+    is_active: true,
+    latitude: "",
+    longitude: "",
+    operating_hours: ""
   });
 
   const fetchBranches = async () => {
@@ -48,12 +54,22 @@ export const BranchManagement = () => {
     e.preventDefault();
     setLoading(true);
 
+    const submitData = {
+      name: formData.name,
+      location: formData.location,
+      phone: formData.phone || null,
+      is_active: formData.is_active,
+      latitude: formData.latitude ? parseFloat(formData.latitude) : null,
+      longitude: formData.longitude ? parseFloat(formData.longitude) : null,
+      operating_hours: formData.operating_hours || null
+    };
+
     try {
       if (editingBranch) {
-        await branchesApi.update(editingBranch.id, formData);
+        await branchesApi.update(editingBranch.id, submitData);
         toast.success("Branch updated successfully");
       } else {
-        await branchesApi.create(formData);
+        await branchesApi.create(submitData);
         toast.success("Branch created successfully");
       }
       setDialogOpen(false);
@@ -79,7 +95,7 @@ export const BranchManagement = () => {
   };
 
   const resetForm = () => {
-    setFormData({ name: "", location: "", phone: "", is_active: true });
+    setFormData({ name: "", location: "", phone: "", is_active: true, latitude: "", longitude: "", operating_hours: "" });
     setEditingBranch(null);
   };
 
@@ -89,7 +105,10 @@ export const BranchManagement = () => {
       name: branch.name,
       location: branch.location,
       phone: branch.phone || "",
-      is_active: branch.is_active
+      is_active: branch.is_active,
+      latitude: branch.latitude?.toString() || "",
+      longitude: branch.longitude?.toString() || "",
+      operating_hours: branch.operating_hours || ""
     });
     setDialogOpen(true);
   };
@@ -146,6 +165,69 @@ export const BranchManagement = () => {
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="operating_hours">Operating Hours</Label>
+                  <Input
+                    id="operating_hours"
+                    placeholder="e.g., 9 AM - 9 PM"
+                    value={formData.operating_hours}
+                    onChange={(e) => setFormData({ ...formData, operating_hours: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>GPS Coordinates</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (navigator.geolocation) {
+                          navigator.geolocation.getCurrentPosition(
+                            (position) => {
+                              setFormData({
+                                ...formData,
+                                latitude: position.coords.latitude.toFixed(6),
+                                longitude: position.coords.longitude.toFixed(6)
+                              });
+                              toast.success("Location captured!");
+                            },
+                            () => toast.error("Unable to get location")
+                          );
+                        } else {
+                          toast.error("Geolocation not supported");
+                        }
+                      }}
+                    >
+                      <Navigation className="h-4 w-4 mr-1" />
+                      Get Current
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label htmlFor="latitude" className="text-xs text-muted-foreground">Latitude</Label>
+                      <Input
+                        id="latitude"
+                        type="number"
+                        step="any"
+                        placeholder="e.g., 9.0192"
+                        value={formData.latitude}
+                        onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="longitude" className="text-xs text-muted-foreground">Longitude</Label>
+                      <Input
+                        id="longitude"
+                        type="number"
+                        step="any"
+                        placeholder="e.g., 38.7525"
+                        value={formData.longitude}
+                        onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="is_active"
@@ -174,9 +256,22 @@ export const BranchManagement = () => {
                   <h3 className="font-medium">{branch.name}</h3>
                   <p className="text-sm text-muted-foreground">{branch.location}</p>
                   {branch.phone && <p className="text-sm text-muted-foreground">{branch.phone}</p>}
-                  <span className={`text-xs ${branch.is_active ? 'text-success' : 'text-muted-foreground'}`}>
-                    {branch.is_active ? 'Active' : 'Inactive'}
-                  </span>
+                  {branch.operating_hours && (
+                    <p className="text-xs text-muted-foreground">Hours: {branch.operating_hours}</p>
+                  )}
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`text-xs ${branch.is_active ? 'text-success' : 'text-muted-foreground'}`}>
+                      {branch.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                    {branch.latitude && branch.longitude ? (
+                      <span className="text-xs text-primary flex items-center gap-1">
+                        <Navigation className="h-3 w-3" />
+                        GPS Set
+                      </span>
+                    ) : (
+                      <span className="text-xs text-amber-500">No GPS</span>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="flex gap-2">
