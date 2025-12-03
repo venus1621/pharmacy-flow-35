@@ -70,8 +70,11 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          latitude: number | null
           location: string
+          longitude: number | null
           name: string
+          operating_hours: string | null
           phone: string | null
           updated_at: string
         }
@@ -79,8 +82,11 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          latitude?: number | null
           location: string
+          longitude?: number | null
           name: string
+          operating_hours?: string | null
           phone?: string | null
           updated_at?: string
         }
@@ -88,8 +94,11 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          latitude?: number | null
           location?: string
+          longitude?: number | null
           name?: string
+          operating_hours?: string | null
           phone?: string | null
           updated_at?: string
         }
@@ -171,6 +180,54 @@ export type Database = {
           name?: string
           requires_prescription?: boolean
           unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      mobile_users: {
+        Row: {
+          address: string | null
+          created_at: string
+          email: string
+          favorite_categories: string[] | null
+          full_name: string
+          id: string
+          latitude: number | null
+          longitude: number | null
+          notification_radius: number | null
+          password_hash: string
+          phone: string | null
+          push_token: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          email: string
+          favorite_categories?: string[] | null
+          full_name: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          notification_radius?: number | null
+          password_hash: string
+          phone?: string | null
+          push_token?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          email?: string
+          favorite_categories?: string[] | null
+          full_name?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          notification_radius?: number | null
+          password_hash?: string
+          phone?: string | null
+          push_token?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -270,6 +327,89 @@ export type Database = {
           role?: Database["public"]["Enums"]["user_role"]
         }
         Relationships: []
+      }
+      promotions: {
+        Row: {
+          branch_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          discount_percentage: number
+          id: string
+          is_active: boolean | null
+          is_featured: boolean | null
+          medicine_id: string | null
+          notification_sent: boolean | null
+          pharmacy_id: string | null
+          promotional_price: number | null
+          updated_at: string
+          valid_from: string
+          valid_until: string
+        }
+        Insert: {
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          discount_percentage: number
+          id?: string
+          is_active?: boolean | null
+          is_featured?: boolean | null
+          medicine_id?: string | null
+          notification_sent?: boolean | null
+          pharmacy_id?: string | null
+          promotional_price?: number | null
+          updated_at?: string
+          valid_from: string
+          valid_until: string
+        }
+        Update: {
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          discount_percentage?: number
+          id?: string
+          is_active?: boolean | null
+          is_featured?: boolean | null
+          medicine_id?: string | null
+          notification_sent?: boolean | null
+          pharmacy_id?: string | null
+          promotional_price?: number | null
+          updated_at?: string
+          valid_from?: string
+          valid_until?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotions_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotions_medicine_id_fkey"
+            columns: ["medicine_id"]
+            isOneToOne: false
+            referencedRelation: "medicines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotions_pharmacy_id_fkey"
+            columns: ["pharmacy_id"]
+            isOneToOne: false
+            referencedRelation: "pharmacies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stock_transfers: {
         Row: {
@@ -422,6 +562,54 @@ export type Database = {
             columns: ["pharmacist_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_notifications: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          promotion_id: string | null
+          read: boolean | null
+          sent_at: string
+          title: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          promotion_id?: string | null
+          read?: boolean | null
+          sent_at?: string
+          title: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          promotion_id?: string | null
+          read?: boolean | null
+          sent_at?: string
+          title?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_notifications_promotion_id_fkey"
+            columns: ["promotion_id"]
+            isOneToOne: false
+            referencedRelation: "promotions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "mobile_users"
             referencedColumns: ["id"]
           },
         ]

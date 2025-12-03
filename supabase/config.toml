@@ -1,1 +1,10 @@
 project_id = "lrxttwggnlvnqoapfkvn"
+
+[functions.mobile-auth]
+verify_jwt = false
+
+[functions.mobile-search]
+verify_jwt = false
+
+[functions.mobile-promotions]
+verify_jwt = false
